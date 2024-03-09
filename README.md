@@ -2,7 +2,7 @@
 
 Firmware for the Waves project.
 
-<img src="https://github.com/VoidNoi/BadCard/blob/main/BADCARD.png" height="400">
+<img src="https://github.com/viniHNS/Waves/blob/main/waves.jpeg" height="400">
 
 ## Name and background of the project
 
