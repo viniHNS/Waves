@@ -2,7 +2,7 @@
 
 Firmware for the Waves project.
 
-<img src="https://github.com/viniHNS/Waves/blob/main/waves.jpeg" height="400">
+<img src="https://github.com/viniHNS/Waves/blob/main/waves.jpeg" widght="400">
 
 ## Name and background of the project
 
@@ -37,6 +37,7 @@ The project is in the early stages of development. The main goal is to have a wo
 ## Features
 
 - [SourApple](https://github.com/RapierXbox/ESP32-Sour-Apple/) - iOS Bluetooth device pairing spam
+- IR Receiver - Receive IR signals and show the protocol and the value
 
 ## License
 This project is licensed under the GPL v3 License - see the [LICENSE.md](LICENSE.md) file for details
