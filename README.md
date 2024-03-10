@@ -17,7 +17,7 @@ The project is in the early stages of development. The main goal is to have a wo
 
 - IR
   - [x] Receive IR signals
-  - [ ] Store IR signals
+  - [x] Store IR signals
   - [ ] Send IR signals
 
 - RF (433Mhz)
@@ -26,8 +26,9 @@ The project is in the early stages of development. The main goal is to have a wo
   - [ ] Receive RF signals
 
 - Misc
-  - [ ] Add SD card read and write (for storing IR and RF signals)
-  - [ ] Play a song in startup
+
+  - [x] Add SD card read and write (for storing IR and RF signals) - For now is only storing IR signals
+  - [x] Play a song in startup
 
 ## Hardware
   - M5Stack CardPuter
