@@ -29,6 +29,8 @@
 #define availableOptions 2
 #define USECPERTICK 50
 
+String APPversion = "Waves v0.0.1";
+
 int letterHeight = 16.6;
 int letterWidth = 12;
 
@@ -109,12 +111,11 @@ void bootLogo(){
   display.fillScreen(ORANGE);
 
   display.setTextSize(2.2);
-  String APPversion = "Waves v0.0.1";
-  display.setCursor(display.width()/2-(APPversion.length()/2)*letterWidth, display.height()/2 - 15);
+  display.setCursor(display.width()/2.05 - (APPversion.length()/2) * letterWidth, display.height()/2 - 17);
   display.println(APPversion);
 
-  display.setTextSize(2);
-  display.setCursor(display.width()/2 - 95, display.height()/2 + 40);
+  display.setTextSize(1.8);
+  display.setCursor(display.width()/2 - 80, display.height()/2 + 40);
   display.println("Press any key...");
 
    while(true) {
@@ -170,7 +171,7 @@ void mainMenu(){
 void RFfn(){
   display.setTextSize(2);
   display.fillScreen(ORANGE);
-  display.setCursor(20, 20);
+  display.setCursor(20, 5);
   display.println("RF (WIP)");
   display.setCursor(18, 110);
   display.setTextSize(1.5);
@@ -191,7 +192,7 @@ void about(){
   display.setTextSize(2);
   display.fillScreen(ORANGE);
   display.setCursor(20, 30);
-  display.println("Waves v0.0.1");
+  display.println(APPversion);
   display.setCursor(20, 60);
   display.setTextSize(1.5);
   display.println("Developed by:");
@@ -215,10 +216,10 @@ void about(){
 void irOptions(){
   display.setTextSize(2);
   display.fillScreen(ORANGE);
-  display.setCursor(20, 20);
+  display.setCursor(20, 5);
   display.println("IR Options");
   display.setTextSize(1.7);
-  display.setCursor(20, 50);
+  display.setCursor(20, 30);
   display.println("1 - Receive (Decoded)");
   display.setCursor(18, 110);
   display.setTextSize(1.5);
@@ -242,12 +243,12 @@ void irOptions(){
 void bluetoothAttacks(){
   display.setTextSize(2);
   display.fillScreen(ORANGE);
-  display.setCursor(20, 20);
+  display.setCursor(20, 5);
   display.println("Bluetooth Attacks");
   display.setTextSize(1.7);
-  display.setCursor(20, 50);
+  display.setCursor(20, 30);
   display.println("1 - Sour Apple");
-  display.setCursor(20, 70);
+  display.setCursor(20, 50);
   display.println("2 - WIP");
   display.setCursor(18, 110);
   display.setTextSize(1.5);
@@ -275,7 +276,7 @@ void sourApple(){
   display.fillScreen(ORANGE);
   display.setCursor(21, 20);
   display.println("Sour Apple Running...");
-  display.setCursor(15, 100);
+  display.setCursor(18, 110);
   display.setTextSize(1.5);
   display.println("Press ESC to return...");
   while(true){
