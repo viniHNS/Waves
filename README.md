@@ -41,7 +41,7 @@ The project is in the early stages of development. The main goal is to have a wo
 - IR Receiver - Receive IR signals and show the protocol and the value
 
 ## License
-This project is licensed under the GPL v3 License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the GPL v3 License - see the [LICENSE](LICENSE) file for details
 
 ## Credits
 
