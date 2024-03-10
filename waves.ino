@@ -20,7 +20,6 @@
 #include <IRremoteESP8266.h> 
 #include <IRrecv.h>
 #include <SD.h>
-#include <SPI.h>
 #include <NimBLEDevice.h>
 
 #define display M5Cardputer.Display
@@ -29,15 +28,24 @@
 #define availableOptions 2
 #define USECPERTICK 50
 
+#define SD_CS_PIN 12
+#define SD_MOSI_PIN 14
+#define SD_MISO_PIN 39
+#define SD_CLK_PIN 40
+
 String APPversion = "Waves v0.0.1";
 
-int letterHeight = 16.6;
-int letterWidth = 12;
+int8_t letterHeight = 16.6;
+int8_t letterWidth = 12;
 
-int cursorPosX, cursorPosY, screenPosX, screenPosY = 0;
+int8_t cursorPosX, cursorPosY, screenPosX, screenPosY = 0;
 
-int menuOption = 0;
-int bluetoothOption = 0;
+int8_t menuOption = 0;
+int8_t bluetoothOption = 0;
+
+int counter;
+
+bool isStartSoundPlayed = false;
 
 //const int bgColor = 0xFC80;
 
@@ -46,16 +54,27 @@ decode_results results;
 
 NimBLEAdvertising *pAdvertising;
 
+File myIRFile;
+
 void RFfn();
 void irReceiveDecoded();
 void bluetoothAttacks();
 void about();
+void storeIrRaw(decode_results results);
 
 void setup() {
   // put your setup code here, to run once:
   auto cfg = M5.config();
   M5Cardputer.begin(cfg, true);
 
+  M5Cardputer.Speaker.begin();
+  M5Cardputer.Speaker.setVolume(100);
+
+  if (!SD.begin(SD_CS_PIN)) {
+    Serial.println("SD initialization failed!");
+    while (1);
+  }
+  
   NimBLEDevice::init("");
 
   esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_P9); //This should increase transmitting power to 9dBm
@@ -75,6 +94,11 @@ void setup() {
 
   bootLogo();
 
+}
+
+void loop() {
+ // M5Cardputer.update();
+  
 }
 
 NimBLEAdvertisementData getOAdvertisementData() {
@@ -102,9 +126,33 @@ NimBLEAdvertisementData getOAdvertisementData() {
   return randomAdvertisementData;
 }
 
-void loop() {
- // M5Cardputer.update();
-  
+int getFileCounter() {
+  if (!SD.exists("/waves/utils/counter.txt")) {
+    // If the file does not exist, create it with the initial value 0
+    File counterFile = SD.open("/waves/utils/counter.txt", FILE_WRITE);
+    if (counterFile) {
+      counterFile.println(0);
+      counterFile.close();
+    }
+  }
+
+  // Now the file should exist, so we can open it for reading
+  File counterFile = SD.open("/waves/utils/counter.txt", FILE_READ);
+  if (!counterFile) {
+    return 0; // If for some reason we still can't open the file, return 0
+  }
+
+  counter = counterFile.parseInt();
+  counterFile.close();
+  return counter;
+}
+
+void saveFileCounter(int counter) {
+  File counterFile = SD.open("/waves/utils/counter.txt", FILE_WRITE);
+  if (counterFile) {
+    counterFile.println(counter);
+    counterFile.close();
+  }
 }
 
 void bootLogo(){
@@ -118,7 +166,7 @@ void bootLogo(){
   display.setCursor(display.width()/2 - 80, display.height()/2 + 40);
   display.println("Press any key...");
 
-   while(true) {
+  while(true) {
     M5Cardputer.update();
     if (keyboard.isChange()) {
       delay(100);
@@ -129,6 +177,23 @@ void bootLogo(){
 }
 
 void mainMenu(){
+
+  if(!isStartSoundPlayed){
+    isStartSoundPlayed = true;
+    M5.Speaker.tone(440, 100);
+    delay(100);
+    M5.Speaker.tone(440, 100);
+    delay(100);
+    M5.Speaker.tone(440, 100);
+    delay(100);
+    M5.Speaker.tone(349, 100);
+    delay(100);
+    M5.Speaker.tone(523, 100);
+    delay(100);
+    M5.Speaker.tone(440, 300);
+    M5Cardputer.Speaker.end();
+  } 
+  
   display.setTextSize(2);
   display.fillScreen(ORANGE);
   display.setCursor(20, 5);
@@ -220,7 +285,11 @@ void irOptions(){
   display.println("IR Options");
   display.setTextSize(1.7);
   display.setCursor(20, 30);
-  display.println("1 - Receive (Decoded)");
+  display.println("1 - Read (Decoded)");
+  display.setCursor(20, 50);
+  display.println("2 - Store (RAW)");
+  display.setCursor(20, 70);
+  display.println("3 - Send (RAW)");
   display.setCursor(18, 110);
   display.setTextSize(1.5);
   display.println("Press ESC to return...");
@@ -237,6 +306,15 @@ void irOptions(){
       irReceiveDecoded();
       break;
     }
+    if(keyboard.isKeyPressed('2')){
+      irReadAndStore();
+      break;
+    }
+    if(keyboard.isKeyPressed('3')){
+      irSend();
+      break;
+    }
+    
   }
 }
 
@@ -302,7 +380,7 @@ void irReceiveDecoded() {
   display.setTextSize(1.5);
   display.fillScreen(ORANGE);
   display.setCursor(20, 20);
-  display.println("IR Received:");
+  display.println("Waiting IR signal:");
   while(true){
     M5Cardputer.update();  
     if(keyboard.isKeyPressed('`')){
@@ -314,10 +392,15 @@ void irReceiveDecoded() {
     if (irReceiver.decode(&results)) {
       int value = results.value;
       delay(1000);
+      display.setTextSize(1.5);
+      display.fillRect(20, 20, 200, 30, ORANGE); 
+      display.setCursor(20, 20);
+      display.println("Signal received:");
+
       display.setTextSize(2);
       display.setCursor(20, 40);
-      display.fillRect(20, 40, 200, 30, ORANGE); // Limpa a área onde o valor é exibido
-      if (results.decode_type == UNKNOWN) {   // Verificamos o tipo de codificação do sinal de infravermelho usado e mostramos
+      display.fillRect(20, 40, 200, 30, ORANGE); 
+      if (results.decode_type == UNKNOWN) {   // verify if the IR code could be decoded and show the code type
         display.print("UNK: "); 
       } 
       else if (results.decode_type == NEC) {
@@ -348,8 +431,198 @@ void irReceiveDecoded() {
   }
 }
 
-void irSend() {
+void irReadAndStore(){
+  display.setTextSize(1.5);
   display.fillScreen(ORANGE);
   display.setCursor(20, 20);
-  display.println("IR Send");
+  display.println("Waiting IR to store:");
+  while(true){
+    M5Cardputer.update();
+    if(keyboard.isKeyPressed('`')){
+      delay(100);
+      menuOption = 0;
+      mainMenu();
+    }
+
+    if (irReceiver.decode(&results)) {
+      int value = results.value;
+
+      delay(1000);
+      display.setTextSize(1.5);
+      display.fillRect(20, 20, 200, 30, ORANGE); 
+      display.setCursor(20, 20);
+      display.println("Signal received:");
+
+      display.setTextSize(2);
+      display.setCursor(20, 40);
+      display.fillRect(20, 40, 200, 30, ORANGE); 
+      if (results.decode_type == UNKNOWN) {   // verify if the IR code could be decoded and show the code type
+        display.print("UNK: "); 
+      } 
+      else if (results.decode_type == NEC) {
+        display.print("NEC: ");
+      } 
+      else if (results.decode_type == SONY) {
+        display.print("SONY: ");
+      } 
+      else if (results.decode_type == RC5) {
+        display.print("RC5: ");
+      } 
+      else if (results.decode_type == RC6) {
+        display.print("RC6: ");
+      }
+      else if (results.decode_type == PANASONIC) { 
+        display.print("PANASONIC: ");
+      }
+      else if (results.decode_type == JVC) {
+        display.print("JVC: ");
+      }
+      display.println(value, HEX);
+      display.setCursor(15, 120);
+      display.setTextSize(1.5);
+      display.println("Press ENTER to store...");
+      display.setCursor(15, 100);
+      display.setTextSize(1.5);
+      display.println("Press ESC to return...");
+      
+      irReceiver.resume(); // Receives the next value
+    }
+
+    if(keyboard.isKeyPressed(KEY_ENTER)){
+      delay(100);
+      storeIrRaw(results);
+      break;
+    }
+  }
+}
+
+void storeIrRaw(decode_results results) {
+  int counter = getFileCounter();
+  String fileName = "/waves/irData/irData_" + String(counter) + ".txt";
+
+  File myIRFile = SD.open(fileName, FILE_WRITE);
+
+  if (myIRFile) {
+    // Write the raw data to the file
+    for (int i = 1; i < results.rawlen; i++) {
+      myIRFile.println(results.rawbuf[i]*USECPERTICK, DEC);
+    }
+    myIRFile.close();
+    counter++;
+    saveFileCounter(counter);
+    display.fillScreen(ORANGE);
+    display.setTextSize(2);
+    display.setCursor(40, 50);
+    display.println("IR Stored!");
+    delay(1000);
+    irOptions();
+  } else {
+    display.fillScreen(ORANGE);
+    display.setCursor(15, 60);
+    display.println("Error storing IR!");
+    delay(1000);
+    irOptions();
+  }
+}
+
+void irSend(){
+  display.setTextSize(1.5);
+  display.fillScreen(ORANGE);
+  display.setCursor(20, 20);
+  display.println("Select an IR signal:");
+
+  getDirectoryIR();
+
+}
+
+void getDirectoryIR() {
+  File root = SD.open("/waves/irData");
+  if (!root) {
+    display.fillScreen(ORANGE);
+    display.setCursor(15, 60);
+    display.println("Error opening directory!");
+    delay(1000);
+    irOptions();
+  }
+
+  display.setTextSize(1.5);
+  int y = 40; // Start y position
+  uint8_t selectedFile = 0;
+  uint8_t fileCount = 0;
+  File files[10]; // Adjust this to the maximum number of files you expect
+
+  // First pass: count the files
+  while (true) {
+    File entry = root.openNextFile();
+    if (!entry) {
+      break;
+    }
+    files[fileCount] = entry;
+    fileCount++;
+  }
+
+  // Initial display
+  display.fillScreen(ORANGE);
+  for (int i = 0; i < fileCount; i++) {
+    display.setCursor(20, y + i * 20);
+    if (i == selectedFile) {
+      display.print("> ");
+    }
+    display.println(files[i].name());
+  }
+
+  // Main loop
+  while (true) {
+    M5Cardputer.update();
+
+    // Check for key presses
+    if (keyboard.isKeyPressed('`')) {
+      delay(100);
+      irOptions();
+      break;
+    } else if (keyboard.isKeyPressed(';')) {
+      // Move the selection up
+      if (selectedFile > 0) {
+        selectedFile--;
+        // Redraw the display
+        display.fillScreen(ORANGE);
+        for (int i = 0; i < fileCount; i++) {
+          display.setCursor(20, y + i * 20);
+          if (i == selectedFile) {
+            display.print("> ");
+          }
+          display.println(files[i].name());
+        }
+      }
+    } else if (keyboard.isKeyPressed('.')) {
+      // Move the selection down
+      if (selectedFile < fileCount - 1) {
+        selectedFile++;
+        // Redraw the display
+        display.fillScreen(ORANGE);
+        for (int i = 0; i < fileCount; i++) {
+          display.setCursor(20, y + i * 20);
+          if (i == selectedFile) {
+            display.print("> ");
+          }
+          display.println(files[i].name());
+        }
+      }
+    } else if (keyboard.isKeyPressed(KEY_ENTER)) {
+      // Open the selected file and send the IR signal
+      File selected = files[selectedFile];
+      if (selected) {
+        // TODO: Read the file and send the IR signal
+      }
+      selected.close();
+    }
+
+    delay(100); // Debounce delay
+  }
+
+  // Close all files
+  for (int i = 0; i < fileCount; i++) {
+    files[i].close();
+  }
+  root.close();
 }
